@@ -5,6 +5,7 @@ import LeftSection from "./components/LeftSection";
 import RightSection from "./components/RightSection";
 import Login from "./components/Login";
 import Register from "./components/Register";
+import ViewTransactions from "./components/ViewTransactions";
 
 function App() {
   const [showMemberForm, setShowMemberForm] = useState(false);
@@ -18,6 +19,7 @@ function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
   const [showRegister, setShowRegister] = useState(false);
+  const [currentView, setCurrentView] = useState('main'); // 'main' or 'transactions'
 
   useEffect(() => {
     if (numMembers > 0 && members.length === numMembers) {
@@ -89,6 +91,16 @@ function App() {
   const handleShowRegister = () => setShowRegister(true);
   const handleRegisterSuccess = () => setShowRegister(false);
 
+  // Handle view transactions
+  const handleViewTransactions = () => {
+    setCurrentView('transactions');
+  };
+
+  // Handle back to main view
+  const handleBackToMain = () => {
+    setCurrentView('main');
+  };
+
   if (!loggedIn) {
     if (showRegister) {
       return <Register onRegisterSuccess={handleRegisterSuccess} />;
@@ -98,27 +110,31 @@ function App() {
 
   return (
     <div className="app-container">
-      <Navbar />
-      <div className="main-content">
-        <LeftSection />
-        <RightSection
-          showMemberForm={showMemberForm}
-          numMembers={numMembers}
-          inputValue={inputValue}
-          handleAddSplit={handleAddSplit}
-          handleNumMembersSubmit={handleNumMembersSubmit}
-          setInputValue={setInputValue}
-          members={members}
-          currentMember={currentMember}
-          handleMemberInputChange={handleMemberInputChange}
-          handleAddMember={handleAddMember}
-          showAvatarsWithNames={showAvatarsWithNames}
-          avatarStackStep={avatarStackStep}
-          showBillUpload={showBillUpload}
-          handleBillUpload={handleBillUpload}
-          user={user}
-        />
-      </div>
+      <Navbar onViewTransactions={handleViewTransactions} />
+      {currentView === 'transactions' ? (
+        <ViewTransactions onBackToMain={handleBackToMain} />
+      ) : (
+        <div className="main-content">
+          <LeftSection />
+          <RightSection
+            showMemberForm={showMemberForm}
+            numMembers={numMembers}
+            inputValue={inputValue}
+            handleAddSplit={handleAddSplit}
+            handleNumMembersSubmit={handleNumMembersSubmit}
+            setInputValue={setInputValue}
+            members={members}
+            currentMember={currentMember}
+            handleMemberInputChange={handleMemberInputChange}
+            handleAddMember={handleAddMember}
+            showAvatarsWithNames={showAvatarsWithNames}
+            avatarStackStep={avatarStackStep}
+            showBillUpload={showBillUpload}
+            handleBillUpload={handleBillUpload}
+            user={user}
+          />
+        </div>
+      )}
     </div>
   );
 }

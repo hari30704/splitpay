@@ -34,6 +34,8 @@ function Register({ onRegisterSuccess }) {
         setError(data.error || "Registration failed.");
         return;
       }
+      // Store user phone in localStorage for transaction access
+      localStorage.setItem('userPhone', phone);
       setSuccess(true);
       setTimeout(() => {
         setSuccess(false);

@@ -33,6 +33,7 @@ function RightSection({
   // assignments: { [productIdx]: [memberName, ...] }
   const [assignments, setAssignments] = useState({});
   const [memberTotals, setMemberTotals] = useState(null);
+  const [transactionSaved, setTransactionSaved] = useState(false);
 
   // Handle bill upload POST to backend
   const handleBillUpload = async (e) => {
@@ -147,6 +148,7 @@ function RightSection({
     setUploadError(null);
     setAssignments({});
     setMemberTotals(null);
+    setTransactionSaved(false);
   };
 
   // Check if all products have at least one member assigned
@@ -155,8 +157,8 @@ function RightSection({
     return assigned.filter(Boolean).length > 0;
   });
 
-  // Calculate totals for each member
-  const handleCalculate = () => {
+  // Calculate totals for each member and save transaction
+  const handleCalculate = async () => {
     if (!parsedResult) return;
     const totals = {};
     parsedResult.forEach((item, pIdx) => {
@@ -173,6 +175,70 @@ function RightSection({
       }
     });
     setMemberTotals(totals);
+
+    // Save transaction to database
+    try {
+      // Prepare transaction data
+      const totalAmount = Object.values(totals).reduce((sum, amount) => sum + amount, 0);
+      
+      // Create price allocation array
+      const priceAllocation = Object.entries(totals).map(([memberName, allocatedAmount]) => {
+        const member = members.find(m => m.name === memberName);
+        return {
+          personName: memberName,
+          personPhone: member?.phone || '',
+          allocatedAmount: allocatedAmount,
+          products: [] // Will be populated below
+        };
+      });
+
+      // Add products to each person's allocation
+      parsedResult.forEach((item, pIdx) => {
+        const assigned = (assignments[pIdx] || []).filter(Boolean);
+        if (assigned.length > 0) {
+          assigned.forEach(memberName => {
+            const allocation = priceAllocation.find(a => a.personName === memberName);
+            if (allocation) {
+              allocation.products.push(item.product);
+            }
+          });
+        }
+      });
+
+      const transactionData = {
+        userPhone: user?.phone || localStorage.getItem('userPhone'),
+        groupDetails: {
+          groupName: shopInfo?.shopName || 'Split Group',
+          members: members
+        },
+        products: parsedResult.map(item => ({
+          productName: item.product,
+          price: parseFloat((item.price || '').replace(/,/g, '').match(/([\d.]+)/)?.[1] || 0)
+        })),
+        priceAllocation: priceAllocation,
+        totalAmount: totalAmount
+      };
+
+      // Save to database
+      const response = await fetch('http://localhost:5000/api/transactions/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(transactionData)
+      });
+
+      if (response.ok) {
+        console.log('Transaction saved successfully!');
+        setTransactionSaved(true);
+        // Hide success message after 3 seconds
+        setTimeout(() => setTransactionSaved(false), 3000);
+      } else {
+        console.error('Failed to save transaction');
+      }
+    } catch (error) {
+      console.error('Error saving transaction:', error);
+    }
   };
 
   // Show member input form if not all members are added
@@ -569,6 +635,20 @@ function RightSection({
                   >
                     💰 Calculate Split
                   </button>
+                  {transactionSaved && (
+                    <div style={{
+                      marginTop: '1rem',
+                      padding: '0.75rem 1.5rem',
+                      backgroundColor: '#d4edda',
+                      color: '#155724',
+                      borderRadius: '8px',
+                      border: '1px solid #c3e6cb',
+                      fontSize: '0.9rem',
+                      fontWeight: '500'
+                    }}>
+                      ✅ Transaction saved successfully! You can view it in "View Transactions"
+                    </div>
+                  )}
                 </div>
                 
                 {memberTotals && (

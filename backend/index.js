@@ -9,6 +9,9 @@ const { MongoClient } = require('mongodb');
 
 dotenv.config();
 
+// Import transaction routes
+const transactionRoutes = require('./routes/transactions');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -18,13 +21,15 @@ app.use(express.json()); // For parsing JSON bodies
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
 // MongoDB setup
-const mongoUrl = process.env.MONGODB_URI 
+const mongoUrl = process.env.MONGODB_URI || 'mongodb://localhost:27017';
 const dbName = 'splitpay';
 let db;
 
 MongoClient.connect(mongoUrl, { useUnifiedTopology: true })
   .then(client => {
     db = client.db(dbName);
+    // Make database available to routes
+    app.locals.db = db;
     console.log('Connected to MongoDB');
   })
   .catch(err => {
@@ -123,6 +128,9 @@ app.post('/analyze-receipt', upload.single('bill'), async (req, res) => {
     res.status(500).json({ error: err.message || 'Failed to process receipt image.' });
   }
 });
+
+// Transaction routes
+app.use('/api/transactions', transactionRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);

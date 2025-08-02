@@ -23,6 +23,8 @@ function Login({ onLogin, onShowRegister }) {
         setError(data.error || "Login failed.");
         return;
       }
+      // Store user phone in localStorage for transaction access
+      localStorage.setItem('userPhone', data.phone);
       if (onLogin) onLogin(data); // Pass user data
     } catch (err) {
       setLoading(false);
