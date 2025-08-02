@@ -34,6 +34,7 @@ function RightSection({
   const [assignments, setAssignments] = useState({});
   const [memberTotals, setMemberTotals] = useState(null);
   const [transactionSaved, setTransactionSaved] = useState(false);
+  const [messageStatus, setMessageStatus] = useState(null); // For SMS feedback
 
   // Handle bill upload POST to backend
   const handleBillUpload = async (e) => {
@@ -156,6 +157,191 @@ function RightSection({
     const assigned = assignments[pIdx] || [];
     return assigned.filter(Boolean).length > 0;
   });
+
+  // Handle sending message to a member about their share
+  const handleSendMessage = (memberName, amount) => {
+    // Find the member to get their phone number
+    const member = members.find(m => m.name === memberName);
+    if (!member || !member.phone) {
+      alert('Phone number not available for this member');
+      return;
+    }
+
+    // Get current timestamp
+    const now = new Date();
+    const timestamp = now.toLocaleString('en-IN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    // Get current user's name
+    const currentUserName = user?.name || 'Unknown User';
+    
+    // Get shop/receipt name
+    const receiptName = shopInfo?.shopName || 'Receipt';
+    
+    // Create a dummy payment link (you can replace this with your actual payment link)
+    const dummyPaymentLink = `https://splitpay.app/pay/${Date.now()}`;
+    
+    // Create the detailed message content
+    const message = `Hi ${memberName}! 
+
+💰 Split Payment Request
+
+Receipt: ${receiptName}
+Your Share: ₹${amount.toFixed(2)}
+Requested by: ${currentUserName}
+Date: ${timestamp}
+
+Please pay your share using the link below:
+${dummyPaymentLink}
+
+Thank you! 🙏`;
+    
+    // Try to send SMS using multiple methods
+    sendSMS(member.phone, message);
+  };
+
+  // Function to show messaging options
+  const sendSMS = (phoneNumber, message) => {
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    
+    // Create URLs for different messaging options
+    const smsUrl = `sms:${cleanPhone}?body=${encodeURIComponent(message)}`;
+    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+    const telegramUrl = `https://t.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+    
+    // Show options dialog
+    const options = [
+      { name: '📱 SMS App', url: smsUrl, color: '#28a745' },
+      { name: '💬 WhatsApp', url: whatsappUrl, color: '#25d366' },
+      { name: '📧 Telegram', url: telegramUrl, color: '#0088cc' }
+    ];
+    
+    // Create and show options modal
+    showMessagingOptions(options, message);
+  };
+
+  // Function to show messaging options modal
+  const showMessagingOptions = (options, message) => {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    `;
+    
+    // Create modal content
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    `;
+    
+    // Add title
+    const title = document.createElement('h3');
+    title.textContent = '💬 Choose Messaging Method';
+    title.style.cssText = `
+      margin: '0 0 1rem 0';
+      color: '#333';
+      fontSize: '1.2rem';
+    `;
+    modalContent.appendChild(title);
+    
+    // Add message preview
+    const preview = document.createElement('div');
+    preview.style.cssText = `
+      background: '#f8f9fa';
+      padding: '1rem';
+      border-radius: '8px';
+      margin: '1rem 0';
+      fontSize: '0.9rem';
+      color: '#666';
+      maxHeight: '100px';
+      overflow: 'auto';
+    `;
+    preview.textContent = message.substring(0, 150) + (message.length > 150 ? '...' : '');
+    modalContent.appendChild(preview);
+    
+    // Add options buttons
+    options.forEach(option => {
+      const button = document.createElement('button');
+      button.textContent = option.name;
+      button.style.cssText = `
+        display: block;
+        width: 100%;
+        padding: 0.75rem 1rem;
+        margin: 0.5rem 0;
+        border: none;
+        border-radius: 8px;
+        background: ${option.color};
+        color: white;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      `;
+      
+      button.onmouseover = () => {
+        button.style.opacity = '0.8';
+      };
+      
+      button.onmouseout = () => {
+        button.style.opacity = '1';
+      };
+      
+      button.onclick = () => {
+        window.open(option.url, '_blank');
+        setMessageStatus({ type: 'success', message: `${option.name} opened successfully!` });
+        setTimeout(() => setMessageStatus(null), 3000);
+        document.body.removeChild(modal);
+      };
+      
+      modalContent.appendChild(button);
+    });
+    
+    // Add cancel button
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = '❌ Cancel';
+    cancelButton.style.cssText = `
+      display: block;
+      width: 100%;
+      padding: 0.75rem 1rem;
+      margin: 0.5rem 0 0 0;
+      border: 1px solid #dc3545;
+      border-radius: 8px;
+      background: white;
+      color: #dc3545;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+    
+    cancelButton.onclick = () => {
+      document.body.removeChild(modal);
+    };
+    
+    modalContent.appendChild(cancelButton);
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+  };
 
   // Calculate totals for each member and save transaction
   const handleCalculate = async () => {
@@ -660,6 +846,26 @@ function RightSection({
                     border: '2px solid #e9ecef',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                   }}>
+                    {/* Message Status Notification */}
+                    {messageStatus && (
+                      <div style={{
+                        padding: '0.75rem 1rem',
+                        marginBottom: '1rem',
+                        borderRadius: '8px',
+                        border: '1px solid',
+                        fontSize: '0.9rem',
+                        fontWeight: '500',
+                        textAlign: 'center',
+                        backgroundColor: messageStatus.type === 'success' ? '#d4edda' : '#fff3cd',
+                        color: messageStatus.type === 'success' ? '#155724' : '#856404',
+                        borderColor: messageStatus.type === 'success' ? '#c3e6cb' : '#ffeaa7'
+                      }}>
+                        {messageStatus.type === 'loading' && '⏳ '}
+                        {messageStatus.type === 'success' && '✅ '}
+                        {messageStatus.message}
+                      </div>
+                    )}
+                    
                     <h4 style={{
                       margin: '0 0 1.5rem 0',
                       color: '#333',
@@ -689,13 +895,43 @@ function RightSection({
                         }}>
                           {member}{user && member === user.name ? ' (me)' : ''}
                         </span>
-                        <span className="member-total-price" style={{
-                          fontWeight: '700',
-                          color: '#28a745',
-                          fontSize: '1.2rem'
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.75rem'
                         }}>
-                          ₹{total.toFixed(2)}
-                        </span>
+                          <span className="member-total-price" style={{
+                            fontWeight: '700',
+                            color: '#28a745',
+                            fontSize: '1.2rem'
+                          }}>
+                            ₹{total.toFixed(2)}
+                          </span>
+                          {user && member !== user.name && (
+                            <button
+                              className="send-message-btn"
+                              onClick={() => handleSendMessage(member, total)}
+                              style={{
+                                padding: '0.5rem 0.75rem',
+                                backgroundColor: '#007bff',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '0.85rem',
+                                fontWeight: '500',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                transition: 'all 0.2s ease',
+                                boxShadow: '0 2px 4px rgba(0,123,255,0.2)'
+                              }}
+                              title={`Send message to ${member} about their share of ₹${total.toFixed(2)}`}
+                            >
+                              💬 Send
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
