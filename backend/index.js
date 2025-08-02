@@ -18,7 +18,7 @@ app.use(express.json()); // For parsing JSON bodies
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
 // MongoDB setup
-const mongoUrl = 'mongodb://localhost:27017';
+const mongoUrl = process.env.MONGODB_URI 
 const dbName = 'splitpay';
 let db;
 
